@@ -131,7 +131,7 @@ def pre_prepare_handler(wrapped_message, msg, sender, signature, l):
     if msg["round"] > 0:
         # Check external validity
 
-        if ibft_instances[l]["validity_callback"] != None and ibft_instances[l]["validity_callback"](msg["value"):
+        if ibft_instances[l]["validity_callback"] != None and ibft_instances[l]["validity_callback"](msg["value"]):
             print("Invalid message value")
             return
 
@@ -180,7 +180,7 @@ def prepare_handler(wrapped_message, msg, sender, signature, l):
         return
 
     # Check external validity
-    if ibft_instances[l]["validity_callback"] != None and ibft_instances[l]["validity_callback"](msg["value"):
+    if ibft_instances[l]["validity_callback"] != None and ibft_instances[l]["validity_callback"](msg["value"]):
         print("Invalid message value")
         return
 
@@ -206,7 +206,7 @@ def prepare_handler(wrapped_message, msg, sender, signature, l):
 def commit_handler(wrapped_message, msg, sender, signature, l):
 
     # Check external validity
-    if ibft_instances[l]["validity_callback"] != None and ibft_instances[l]["validity_callback"](msg["value"):
+    if ibft_instances[l]["validity_callback"] != None and ibft_instances[l]["validity_callback"](msg["value"]):
         print("Invalid message value")
         return
 
