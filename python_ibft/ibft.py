@@ -4,15 +4,16 @@ import _thread, threading
 from queue import Queue
 import random
 import time
-import argparse
+import json
 
-if __name__ == '__main__':
-    from bls_threshold import py_ecc_bls, reconstruct, get_aggregate_key
-else:
-    from .bls_threshold import py_ecc_bls, reconstruct, get_aggregate_key
+from bls_threshold import py_ecc_bls, reconstruct, get_aggregate_key
+
 
 def ibft_leader(l, r):
-    return (l + r) % ibft_n
+    if ibft_leader_primitive != None:
+        return ibft_leader_primitive(l,r)
+    else:
+        return (l + r) % ibft_n
 
 def send_broadcast(msg):
     ibft_send_messages(msg, is_broadcast=True)
@@ -90,19 +91,26 @@ def ibft_timer():
         if "timer" in instance:
             instance["timer"] -= ibft_timer_granularity
             if instance["timer"] <= 0:
-                print("Timeout on instance {0} for round {1}".format(l, instance["round"]))
-                instance["round"] += 1
-                instance["timer"] = ibft_start_time * 2 ** instance["round"]
-                ibft_initiate_round_change(l)
+                ibft_timeout(l, instance["round"])
 
     threading.Timer(ibft_timer_granularity / 1000, ibft_timer).start()
+
+
+def ibft_timeout(ninst, rnd):
+    print("Timeout on instance {0} for round {1}".format(ninst, rnd))
+    instance = ibft_instances[ninst]
+    instance["round"] += 1
+    instance["timer"] = ibft_start_time * 2 ** instance["round"]
+    ibft_initiate_round_change(ninst)
 
 
 def start_instance(instance_id, input_value, validity_callback=None, decision_callback=None):
     l = instance_id
     ibft_instances[l]["input_value"] = input_value
-    ibft_instances[l]["timer"] = ibft_start_time
-    # TODO: Implement validity callback!
+    
+    if not ibft_external_timer:
+        ibft_instances[l]["timer"] = ibft_start_time
+
     ibft_instances[l]["validity_callback"] = validity_callback
     ibft_instances[l]["decision_callback"] = decision_callback
     if ibft_leader(l, 0) == ibft_id:
@@ -114,7 +122,10 @@ def start_instance(instance_id, input_value, validity_callback=None, decision_ca
 
 
 def run_server():
-    ibft_timer()
+    if not ibft_external_timer:
+        ibft_timer()
+
+    _thread.start_new_thread(ibft_process_events, ())
 
 
 ibft_instances = defaultdict(ibft_instance)
@@ -131,7 +142,7 @@ def pre_prepare_handler(wrapped_message, msg, sender, signature, l):
     if msg["round"] > 0:
         # Check external validity
 
-        if ibft_instances[l]["validity_callback"] != None and ibft_instances[l]["validity_callback"](msg["value"]):
+        if ibft_instances[l]["validity_callback"] != None and not ibft_instances[l]["validity_callback"](msg["value"]):
             print("Invalid message value")
             return
 
@@ -180,7 +191,7 @@ def prepare_handler(wrapped_message, msg, sender, signature, l):
         return
 
     # Check external validity
-    if ibft_instances[l]["validity_callback"] != None and ibft_instances[l]["validity_callback"](msg["value"]):
+    if ibft_instances[l]["validity_callback"] != None and not ibft_instances[l]["validity_callback"](msg["value"]):
         print("Invalid message value")
         return
 
@@ -206,7 +217,7 @@ def prepare_handler(wrapped_message, msg, sender, signature, l):
 def commit_handler(wrapped_message, msg, sender, signature, l):
 
     # Check external validity
-    if ibft_instances[l]["validity_callback"] != None and ibft_instances[l]["validity_callback"](msg["value"]):
+    if ibft_instances[l]["validity_callback"] != None and not ibft_instances[l]["validity_callback"](msg["value"]):
         print("Invalid message value")
         return
 
@@ -364,89 +375,30 @@ def ibft_process_events():
             print("Error processing message, ignored")
 
 
-def load_config(parties_file, config_file, privkey_file, process_id,
-                message_primitive):
+def load_config(parties, config, privkey, process_id,
+                message_primitive, leader_primitive = None):
 
     global  ibft_id, ibft_parties, ibft_t, ibft_n, ibft_start_time, \
             ibft_timer_granularity, ibft_threshold_pubkey, ibft_privkey, \
-            ibft_message_primitive
+            ibft_message_primitive, ibft_leader_primitive, ibft_external_timer
 
     ibft_id = process_id
 
-    privkey_json = json.load(open(privkey_file, "r"))
 
-    ibft_privkey = privkey_json["private_key"]
-
-    ibft_parties = json.load(open(parties_file, "r"))
-    ibft_config = json.load(open(config_file, "r"))
+    ibft_privkey = privkey["private_key"]
+    ibft_config = config
+    ibft_parties = parties
 
     ibft_t = ibft_config["ibft_t"]
     ibft_n = ibft_config["ibft_n"]
 
     ibft_message_primitive = message_primitive
 
+    ibft_leader_primitive = leader_primitive
+
     ibft_start_time = ibft_config["ibft_start_time"] # Milliseconds
     ibft_timer_granularity = ibft_config["ibft_timer_granularity"]
     ibft_threshold_pubkey = get_aggregate_key(
             {k: bytes.fromhex(v["public_key"][2:])
             for k, v in enumerate(ibft_parties[:2 * ibft_t + 1])})
-
-
-if __name__ == '__main__':
-
-    from flask import json
-
-    parser = argparse.ArgumentParser(description='Run Istanbul BFT process.')
-    parser.add_argument('process_id', metavar='process_id', type=int, 
-                        help='The ID of the process')
-    parser.add_argument('--parties', metavar='parties_json', type=str, default="conf/parties.json",
-                        help='JSON configuring the parties')
-    parser.add_argument('--config', metavar='config_json', type=str, default="conf/config.json",
-                        help='JSON configuration')
-    parser.add_argument('--privkey', metavar='privkey_json', type=str, default="",
-                        help='JSON configuration')
-    parser.add_argument('--input-value', metavar='input_value', type=str, default="",
-                        help='Use as input value')
-    parser.add_argument("--offline",dest='offline',action='store_true', help="Defect mode: this process is offline.")
-    parser.add_argument("--random-values",dest='random_values',action='store_true', help="Defect mode: this process will send random values in messages.")
-    parser.add_argument("--online-delayed",dest='online_delayed',action='store_true', help="Defect mode: Only come online after 60 seconds.")
-    parser.add_argument("--offline-delayed",dest='offline_delayed',action='store_true', help="Defect mode: Go offline after 60 seconds.")
-    parser.add_argument("--offline-after-prepare",dest='offline_after_prepare',action='store_true', help="Defect mode: Go offline after first round is prepared.")
-
-    args = parser.parse_args()
-
-    ibft_id = args.process_id
-    print("I am IBFT process {0}".format(ibft_id))
-
-    if args.online_delayed:
-        print("Waiting 60s to go online")
-        time.sleep(60)
-        print("Now online")
-
-    if args.offline_delayed:
-        print("Will go offline after 60s")
-        def go_offline():
-            print("Going offline")
-            os._exit(0)
-
-        threading.Timer(60, go_offline).start()
-
-    if args.privkey == "":
-        privkey_file = "conf/privkey_{0}.json".format(ibft_id)
-    else:
-        privkey_file = args.privkey
-
-    import server
-    import _thread, threading
-
-    load_config(args.parties, args.config, privkey_file, ibft_id, server.message_primitive)
-    server.define_api(ibft_message_queue, ibft_instances, ibft_parties, ibft_id)
-
-    if not args.offline:
-        run_server()
-        server.run_server(ibft_parties[ibft_id]["port"])
-        _thread.start_new_thread(ibft_process_events, ())
-        start_instance(0, args.input_value)
-    else:
-        print("I'm offline, doing nothing")
-        input()
+    ibft_external_timer = ibft_config["ibft_external_timer"]

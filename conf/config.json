@@ -2,5 +2,6 @@
     "ibft_n": 4,
     "ibft_t": 1,
     "ibft_start_time": 10000,
-    "ibft_timer_granularity": 500
+    "ibft_timer_granularity": 500,
+	"ibft_external_timer": false
 }
