@@ -53,10 +53,20 @@ def define_api(ibft_message_queue, ibft_instances, ibft_parties, ibft_id):
         return make_response(jsonify(ibft_id), 200)
 
 
+def start_ibft(privkey_json, parties_json, config_json):
+    
+    """
+        Run this to configure the server, then call ibft.start_instance()
+    """
+
+    ibft.load_config(parties_json, config_json, privkey_json, ibft_id, message_primitive)
+    define_api(ibft.ibft_message_queue, ibft.ibft_instances, ibft.ibft_parties, ibft_id)
+
+    ibft.run_server()
+    run_server(parties_json[ibft_id]["port"])
 
 
 if __name__ == '__main__':
-
 
     parser = argparse.ArgumentParser(description='Run Istanbul BFT process.')
     parser.add_argument('process_id', metavar='process_id', type=int, 
@@ -102,20 +112,15 @@ if __name__ == '__main__':
 
     if args.test_validity != "":
         valid = lambda x: x == args.test_validity
+    else:
+        valid = None
 
     privkey_json = json.load(open(privkey_file, "r"))
     parties_json = json.load(open(args.parties, "r"))
     config_json = json.load(open(args.config, "r"))
 
-    ibft.load_config(parties_json, config_json, privkey_json, ibft_id, message_primitive)
-    define_api(ibft.ibft_message_queue, ibft.ibft_instances, ibft.ibft_parties, ibft_id)
-
-    def valid(msg):
-        return msg == "decide this"
-
     if not args.offline:
-        ibft.run_server()
-        run_server(parties_json[ibft_id]["port"])
+        start_ibft(privkey_json, parties_json, config_json)
         ibft.start_instance(0, args.input_value, validity_callback=valid)
     else:
         print("I'm offline, doing nothing")
