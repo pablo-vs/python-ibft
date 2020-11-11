@@ -4,7 +4,7 @@ import requests
 import argparse
 import _thread, threading
 
-import ibft
+from . import ibft
 
 
 def message_primitive(dest_party, msg):
@@ -53,7 +53,7 @@ def define_api(ibft_message_queue, ibft_instances, ibft_parties, ibft_id):
         return make_response(jsonify(ibft_id), 200)
 
 
-def start_ibft(privkey_json, parties_json, config_json):
+def start_ibft(privkey_json, parties_json, config_json, ibft_id):
     
     """
         Run this to configure the server, then call ibft.start_instance()
@@ -120,7 +120,7 @@ if __name__ == '__main__':
     config_json = json.load(open(args.config, "r"))
 
     if not args.offline:
-        start_ibft(privkey_json, parties_json, config_json)
+        start_ibft(privkey_json, parties_json, config_json, ibft_id)
         ibft.start_instance(0, args.input_value, validity_callback=valid)
     else:
         print("I'm offline, doing nothing")

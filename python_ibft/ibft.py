@@ -6,7 +6,7 @@ import random
 import time
 import json
 
-from bls_threshold import py_ecc_bls, reconstruct, get_aggregate_key
+from .bls_threshold import py_ecc_bls, reconstruct, get_aggregate_key
 
 
 def ibft_leader(l, r):
