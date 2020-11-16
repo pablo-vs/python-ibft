@@ -15,7 +15,7 @@ def eval_poly(x, coefs):
     for c in coefs:
         r += power_of_x * c % b.curve_order
         power_of_x = power_of_x * x % b.curve_order
-    return r
+    return r % b.curve_order
 
 def generate_keys(n_parties, t):
     coefs = [random.randint(0, b.curve_order - 1) for i in range(t + 1)]

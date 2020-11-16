@@ -16,5 +16,10 @@ setuptools.setup(
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",
     ],
+    install_requires=[
+        "flask>=1.1.2",
+        "py_ecc>=4.1.0",
+        "requests>=2.24",
+    ],
     python_requires='>=3.6',
 )

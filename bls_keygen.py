@@ -1,4 +1,4 @@
-from bls_threshold import generate_keys
+from python_ibft.bls_threshold import generate_keys
 import json
 import argparse
 

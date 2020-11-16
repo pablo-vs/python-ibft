@@ -3,16 +3,22 @@ Python implementation of Istanbul BFT algorithm using Flask. Experimental
 
 ## Requirements
 
-Needs python3, flask, tmux (for ```run*.sh``` scripts)
+Needs python3, flask, tmux (for `test/run*.sh` scripts)
 
 ## Testing
 
 Run
 ```bash
-./run.sh
+test/run.sh
 ```
 to try it out; tmux required.
-Several scripts to experiment with defective parties are included in ```run*.sh```.
+Several scripts to experiment with defective parties are included in `test/run*.sh`.
+
+You can also run it directly (but you'll need to launch all the nodes manually)
+
+```bash
+python run.py 0 --lambda "decide this"
+```
 
 ## More info
 
