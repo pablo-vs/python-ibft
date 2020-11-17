@@ -111,8 +111,10 @@ def start_instance(instance_id, input_value, validity_callback=None, decision_ca
     if not ibft_external_timer:
         ibft_instances[l]["timer"] = ibft_start_time
 
-    ibft_instances[l]["validity_callback"] = validity_callback
-    ibft_instances[l]["decision_callback"] = decision_callback
+    if validity_callback is not None:
+        ibft_instances[l]["validity_callback"] = validity_callback
+    if decision_callback is not None:
+        ibft_instances[l]["decision_callback"] = decision_callback
     if ibft_leader(l, 0) == ibft_id:
         broadcast_message = {"type": "pre-prepare",
                                "lambda": l,
@@ -142,7 +144,7 @@ def pre_prepare_handler(wrapped_message, msg, sender, signature, l):
     if msg["round"] > 0:
         # Check external validity
 
-        if ibft_instances[l]["validity_callback"] != None and not ibft_instances[l]["validity_callback"](msg["value"]):
+        if "validity_callback" in ibft_instances[l] and not ibft_instances[l]["validity_callback"](msg["value"]):
             print("Invalid message value")
             return
 
@@ -191,7 +193,7 @@ def prepare_handler(wrapped_message, msg, sender, signature, l):
         return
 
     # Check external validity
-    if ibft_instances[l]["validity_callback"] != None and not ibft_instances[l]["validity_callback"](msg["value"]):
+    if "validity_callback" in ibft_instances[l] and not ibft_instances[l]["validity_callback"](msg["value"]):
         print("Invalid message value")
         return
 
@@ -217,7 +219,7 @@ def prepare_handler(wrapped_message, msg, sender, signature, l):
 def commit_handler(wrapped_message, msg, sender, signature, l):
 
     # Check external validity
-    if ibft_instances[l]["validity_callback"] != None and not ibft_instances[l]["validity_callback"](msg["value"]):
+    if "validity_callback" in ibft_instances[l] and not ibft_instances[l]["validity_callback"](msg["value"]):
         print("Invalid message value")
         return
 
@@ -231,7 +233,7 @@ def commit_handler(wrapped_message, msg, sender, signature, l):
             del ibft_instances[l]["timer"]
         ibft_instances[l]["decided"] = msg["value"]
         print("Decided on lambda={0}, value={1}".format(msg["lambda"], msg["value"]))
-        if ibft_instances[l]["decision_callback"] != None:
+        if "decision_callback" in ibft_instances[l]:
             ibft_instances[l]["decision_callback"](msg["value"])
 
         ibft_instances[l]["decision_message"] = msg
@@ -324,7 +326,7 @@ def decide_handler(wrapped_message, msg, sender, signature, l):
     if "timer" in ibft_instances[l]:
         del ibft_instances[l]["timer"]
     print("Decided via 'decide' message on lambda={0}, value={1}".format(l, msg["value"]))
-    if ibft_instances[l]["decision_callback"] != None:
+    if "decision_callback" in ibft_instances[l]:
         ibft_instances[l]["decision_callback"](msg["value"])
 
 
@@ -352,6 +354,8 @@ def ibft_process_events():
                 if broadcast_callback != None:
                     broadcast_callback(wrapped_message["message"], wrapped_message["sender"])
                 continue
+
+            if 
             l = msg["lambda"]
             if "decided" in ibft_instances[l]:
                 if msg["type"] == "round-change":
@@ -371,7 +375,7 @@ def ibft_process_events():
                     lambda *args: print("Bad message type, ignored")
                     )(wrapped_message, msg, sender, signature, l)
         except Exception as e:
-            print(e)
+            print(sys.exc_info())
             print("Error processing message, ignored")
 
 
